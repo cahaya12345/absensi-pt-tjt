@@ -4,6 +4,96 @@ body {
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
+.mobile-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
+  border-top: 1px solid #e2e8f0;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 -4px 16px rgb(15 23 42 / 8%);
+  backdrop-filter: blur(12px);
+}
+
+.mobile-nav button {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  color: #64748b;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.mobile-nav button i {
+  font-size: 1.125rem;
+}
+
+.mobile-nav button.active {
+  color: #2e7d32;
+}
+
+@media (min-width: 768px) {
+  .mobile-nav {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  #reader,
+  #reader video {
+    max-width: 100%;
+  }
+
+  #rekap-table-container {
+    min-width: 0;
+  }
+
+  #rekap-table-container > div.overflow-x-auto {
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #rekap-table-container table {
+    white-space: nowrap;
+  }
+
+  #rekap-table-container h3 {
+    overflow-wrap: anywhere;
+  }
+
+  .print-modal {
+    max-height: 100dvh;
+  }
+
+  .print-modal-content {
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+  }
+
+  .print-modal #print-area {
+    width: min(100%, 300px);
+  }
+
+  .mobile-toast {
+    right: 1rem;
+    bottom: calc(5.5rem + env(safe-area-inset-bottom));
+    left: 1rem;
+    justify-content: center;
+  }
+}
+
 /* Animasi scanner line */
 @keyframes scanAnimation {
   0% {
