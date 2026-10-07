@@ -32,38 +32,14 @@ function adminAbsensiApp() {
 
     currentTime: '',
 
-    // Riwayat Absensi Berdasarkan Tanggal
+    // Riwayat Absensi Bersih (Kosong)
     riwayatAbsensi: {},
 
-    daftarKaryawan: [
-      {
-        nip: 'TJ-101',
-        nama: 'Budi Santoso',
-        jabatan: 'Teknisi Senior',
-        divisi: 'Teknik & Lapangan',
-        shift: 'Shift 1 (Pagi)',
-        foto: null
-      },
-      {
-        nip: 'TJ-102',
-        nama: 'Siti Aminah',
-        jabatan: 'Staff HRD',
-        divisi: 'HRD & Operasional',
-        shift: 'Shift 1 (Pagi)',
-        foto: null
-      },
-      {
-        nip: 'TJ-103',
-        nama: 'Rian Hidayat',
-        jabatan: 'Supervisor',
-        divisi: 'Teknik & Lapangan',
-        shift: 'Shift 2 (Siang)',
-        foto: null
-      }
-    ],
+    // Daftar Karyawan Bersih (Kosong Tanpa Data Bawaan)
+    daftarKaryawan: [],
 
     init() {
-      // Load Data dari LocalStorage
+      // Load Data dari LocalStorage jika ada
       const savedKaryawan = localStorage.getItem('trijaya_karyawan');
       if (savedKaryawan) {
         try { this.daftarKaryawan = JSON.parse(savedKaryawan); } catch(e) {}
