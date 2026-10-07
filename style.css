@@ -1,0 +1,80 @@
+/* Custom Styles for Absensi Barcode PT. Tri Jaya Teknik Karawang */
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Animasi scanner line */
+@keyframes scanAnimation {
+  0% {
+    top: 0%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 95%;
+    opacity: 1;
+  }
+  100% {
+    top: 0%;
+    opacity: 0.8;
+  }
+}
+
+.scanner-line {
+  animation: scanAnimation 2s infinite ease-in-out;
+}
+
+/* Custom CSS untuk Mode Cetak / Print PDF */
+@media print {
+  /* Sembunyikan elemen yang tidak perlu saat dicetak */
+  .no-print, 
+  aside, 
+  header, 
+  nav, 
+  button {
+    display: none !important;
+  }
+
+  body {
+    background-color: #ffffff !important;
+  }
+
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+    /* Kustomisasi cetak kartu ID */
+  body.print-card-mode * {
+    visibility: hidden !important;
+  }
+
+  body.print-card-mode #print-area,
+  body.print-card-mode #print-area * {
+    visibility: visible !important;
+  }
+
+  body.print-card-mode #print-area {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: none !important;
+    border: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Pastikan warna hijau & barcode ikut tercetak */
+  body.print-card-mode #print-area * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Kustomisasi cetak laporan */
+  body.print-laporan-mode #rekap-table-container {
+    border: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
+  }
+}

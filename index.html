@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Absensi Barcode PT. TRI JAYA TEKNIK KARAWANG</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Konfigurasi Warna Tailwind -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              light: '#E8F5E9',
+              primary: '#2E7D32',
+              neon: '#00E676',
+              dark: '#1B5E20',
+              bg: '#F3F6F4'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- JsBarcode Library -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  
+  <!-- HTML5-QRCode Library untuk Scanner Kamera -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-brand-bg font-sans text-slate-800 antialiased" x-data="adminAbsensiApp()">
+
+  <div class="flex h-screen overflow-hidden">
+    
+    <!-- SIDEBAR ADMIN -->
+    <aside class="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between p-4 z-10 shrink-0">
+      <div>
+        <!-- Logo Perusahaan -->
+        <div class="flex items-center gap-3 px-2 py-3 border-b border-slate-100">
+          <img src="logo pt.jpg" alt="Logo PT. Tri Jaya Teknik Karawang" class="h-10 w-auto object-contain">
+          <div>
+            <h1 class="font-bold text-slate-800 leading-tight text-xs">PT. TRI JAYA TEKNIK</h1>
+            <p class="text-[10px] text-brand-primary font-extrabold tracking-wider">KARAWANG • ADMIN</p>
+          </div>
+        </div>
+
+        <!-- Menu Sidebar -->
+        <nav class="mt-6 space-y-1.5">
+          <button @click="switchTab('scan')" :class="activeTab === 'scan' ? 'bg-brand-light text-brand-primary font-bold' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all">
+            <i class="fa-solid fa-qrcode w-5"></i>
+            <span>Scan Barcode</span>
+          </button>
+
+          <button @click="switchTab('karyawan')" :class="activeTab === 'karyawan' ? 'bg-brand-light text-brand-primary font-bold' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all">
+            <i class="fa-solid fa-users w-5"></i>
+            <span>Data Karyawan & Barcode</span>
+          </button>
+
+          <button @click="switchTab('rekap')" :class="activeTab === 'rekap' ? 'bg-brand-light text-brand-primary font-bold' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all">
+            <i class="fa-solid fa-clipboard-list w-5"></i>
+            <span>Rekap Kehadiran Realtime</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 text-xs text-slate-500">
+        <p class="font-bold text-slate-700 mb-1">Status Scanner System</p>
+        <p class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-brand-neon animate-pulse"></span> Mode Admin Aktif
+        </p>
+      </div>
+    </aside>
+
+    <!-- KONTEN UTAMA -->
+    <main class="flex-1 overflow-y-auto p-8">
+      
+      <!-- TOPBAR -->
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <span class="text-[11px] font-bold text-slate-400 tracking-wider uppercase">PORTAL UTAMA ADMIN</span>
+          <h2 class="text-2xl font-extrabold text-slate-800 tracking-tight" x-text="getPageTitle()"></h2>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200/80 text-sm font-medium flex items-center gap-2">
+            <i class="fa-regular fa-clock text-brand-primary"></i>
+            <span x-text="currentTime" class="font-bold text-brand-primary"></span>
+          </div>
+          <div class="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-slate-200/80 shadow-sm">
+            <div class="w-8 h-8 rounded-lg bg-brand-primary text-white flex items-center justify-center font-bold text-xs shadow-md">
+              AD
+            </div>
+            <span class="text-sm font-bold text-slate-700 pr-2">Admin HR</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FITUR 1: SCAN BARCODE KARYAWAN -->
+      <div x-show="activeTab === 'scan'">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- Box Kamera Scanner -->
+          <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <i class="fa-solid fa-camera text-brand-primary"></i> Scanner Kehadiran Karyawan
+            </h3>
+
+            <!-- Pilih Mode Scan -->
+            <div class="flex gap-4 mb-4">
+              <button @click="scanMode = 'masuk'" :class="scanMode === 'masuk' ? 'bg-brand-primary text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="flex-1 py-2.5 rounded-xl text-sm transition-all">
+                Mode Absen Masuk
+              </button>
+              <button @click="scanMode = 'pulang'" :class="scanMode === 'pulang' ? 'bg-brand-primary text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="flex-1 py-2.5 rounded-xl text-sm transition-all">
+                Mode Absen Pulang
+              </button>
+            </div>
+
+            <!-- Area Web Kamera -->
+            <div class="relative w-full min-h-[320px] bg-slate-950 rounded-2xl overflow-hidden border-2 border-brand-primary/30 flex flex-col items-center justify-center mb-6 shadow-inner">
+              
+              <!-- Container Render Scanner -->
+              <div id="reader" class="w-full h-full"></div>
+
+              <!-- Overlay Visual animasi saat scanner belum berjalan -->
+              <template x-if="!isCameraActive">
+                <div class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 text-white gap-3 p-4 text-center">
+                  <i class="fa-solid fa-qrcode text-6xl text-white/20"></i>
+                  <p class="text-xs text-slate-400 max-w-xs leading-relaxed">Tekan tombol di bawah untuk mengaktifkan scanner kamera secara real-time.</p>
+                  <button @click="startCamera()" class="px-5 py-2.5 bg-brand-primary text-white font-bold text-xs rounded-xl shadow-lg hover:bg-brand-dark transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-video"></i> Aktifkan Kamera
+                  </button>
+                </div>
+              </template>
+
+              <!-- Line Animasi saat kamera aktif -->
+              <template x-if="isCameraActive">
+                <div class="absolute inset-x-8 top-12 bottom-12 border-2 border-brand-neon/40 rounded-xl pointer-events-none flex items-center justify-center">
+                  <div class="absolute w-full h-1 bg-brand-neon shadow-[0_0_15px_#00E676] scanner-line"></div>
+                </div>
+              </template>
+            </div>
+
+            <!-- Alternative Manual Input NIP -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">SIMULASI SCANNER (Ketik NIP / Scan USB Barcode Manual):</label>
+              <form @submit.prevent="processScan(inputNipScan)" class="flex gap-2">
+                <input type="text" x-model="inputNipScan" placeholder="Masukkan NIP Karyawan (contoh: TJ-101)..." class="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-primary">
+                <button type="submit" class="px-6 py-2.5 bg-brand-primary text-white font-bold text-sm rounded-xl hover:bg-brand-dark transition-all shrink-0">
+                  Scan Barcode
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Log Scan Terbaru -->
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center justify-between">
+              <span>Scan Terakhir Realtime</span>
+              <span class="w-2.5 h-2.5 rounded-full bg-brand-neon animate-pulse"></span>
+            </h3>
+
+            <template x-if="lastScannedKaryawan">
+              <div class="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
+                <div class="w-20 h-20 rounded-full border-2 border-brand-primary overflow-hidden mx-auto mb-3 shadow-lg flex items-center justify-center bg-slate-100">
+                  <template x-if="lastScannedKaryawan.foto">
+                    <img :src="lastScannedKaryawan.foto" class="w-full h-full object-cover">
+                  </template>
+                  <template x-if="!lastScannedKaryawan.foto">
+                    <span class="text-xl font-extrabold text-brand-primary" x-text="lastScannedKaryawan.nama.substring(0,2).toUpperCase()"></span>
+                  </template>
+                </div>
+                <h4 class="font-bold text-slate-800 text-lg" x-text="lastScannedKaryawan.nama"></h4>
+                <p class="text-xs text-slate-500 font-semibold mt-0.5" x-text="lastScannedKaryawan.nip + ' • ' + lastScannedKaryawan.jabatan"></p>
+                <div class="mt-5 pt-3 border-t border-green-200/80 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span class="text-slate-400 block mb-0.5">Jam Masuk</span>
+                    <span class="font-black text-brand-primary text-base" x-text="lastScannedKaryawan.jamMasuk || '-'"></span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block mb-0.5">Jam Pulang</span>
+                    <span class="font-black text-brand-primary text-base" x-text="lastScannedKaryawan.jamPulang || '-'"></span>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <template x-if="!lastScannedKaryawan">
+              <div class="text-center py-20 text-slate-400">
+                <i class="fa-solid fa-qrcode text-4xl mb-3 opacity-30"></i>
+                <p class="text-xs">Belum ada aktivitas scan barcode dalam sesi ini.</p>
+              </div>
+            </template>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- FITUR 2: INPUT, EDIT, DELETE & UPLOAD FOTO DATA KARYAWAN -->
+      <div x-show="activeTab === 'karyawan'">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- Form Input/Edit Data Karyawan -->
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center justify-between">
+              <span class="flex items-center gap-2">
+                <i class="fa-solid" :class="isEditMode ? 'fa-user-pen text-amber-600' : 'fa-user-plus text-brand-primary'"></i> 
+                <span x-text="isEditMode ? 'Edit Data Karyawan' : 'Form Tambah Karyawan'"></span>
+              </span>
+              <template x-if="isEditMode">
+                <button @click="resetForm()" class="text-xs font-semibold text-slate-400 hover:text-slate-600 underline">Batal</button>
+              </template>
+            </h3>
+
+            <form @submit.prevent="simpanKaryawan()" class="space-y-4">
+              <!-- Upload Foto Profile -->
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1.5">FOTO KARYAWAN</label>
+                <div class="flex items-center gap-4">
+                  <div class="w-16 h-16 rounded-full border-2 border-dashed border-slate-300 overflow-hidden bg-slate-50 flex items-center justify-center shrink-0 relative group">
+                    <template x-if="form.foto">
+                      <img :src="form.foto" class="w-full h-full object-cover">
+                    </template>
+                    <template x-if="!form.foto">
+                      <i class="fa-solid fa-camera text-slate-400 text-xl"></i>
+                    </template>
+                  </div>
+                  <div class="flex-1">
+                    <input type="file" @change="handleFileUpload($event)" accept="image/*" id="foto-input" class="hidden">
+                    <label for="foto-input" class="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all">
+                      <i class="fa-solid fa-upload"></i> Pilih Foto...
+                    </label>
+                    <p class="text-[10px] text-slate-400 mt-1">Format: JPG, PNG (Maks 2MB)</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">NIP KARYAWAN</label>
+                <input type="text" x-model="form.nip" placeholder="Contoh: TJT-104" :disabled="isEditMode" required class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-primary disabled:bg-slate-100">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">NAMA LENGKAP</label>
+                <input type="text" x-model="form.nama" placeholder="Nama Karyawan..." required class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-primary">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">JABATAN</label>
+                <input type="text" x-model="form.jabatan" placeholder="Contoh: Staff Teknik / Admin" required class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-primary">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">DIVISI / DEPARTEMEN</label>
+                <select x-model="form.divisi" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-primary">
+                  <option value="Teknik & Lapangan">Teknik & Lapangan</option>
+                  <option value="HRD & Operasional">HRD & Operasional</option>
+                  <option value="Keuangan">Keuangan</option>
+                  <option value="Magang/PKL">Magang/PKL</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">SHIFT JADWAL KERJA</label>
+                <select x-model="form.shift" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-brand-primary">
+                  <option value="Shift 1 (Pagi)">Shift 1 (08.00 - 16.00)</option>
+                  <option value="Shift 2 (Siang)">Shift 2 (16.00 - 24.00)</option>
+                </select>
+              </div>
+
+              <div class="flex gap-2">
+                <button type="submit" class="flex-1 py-3 text-white font-bold text-sm rounded-xl transition-all shadow-md"
+                  :class="isEditMode ? 'bg-amber-600 hover:bg-amber-700' : 'bg-brand-primary hover:bg-brand-dark'"
+                  x-text="isEditMode ? 'Perbarui Data Karyawan' : '+ Simpan & Generate Barcode'">
+                </button>
+                <template x-if="isEditMode">
+                  <button type="button" @click="resetForm()" class="px-4 py-3 bg-slate-100 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-200 transition-all">
+                    Batal
+                  </button>
+                </template>
+              </div>
+            </form>
+          </div>
+
+          <!-- Daftar Karyawan, Edit, Delete & Cetak Barcode -->
+          <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
+            <h3 class="text-lg font-bold text-slate-800 mb-4">Daftar Karyawan & Cetak ID Barcode</h3>
+            
+            <div class="space-y-3">
+              <template x-for="karyawan in daftarKaryawan" :key="karyawan.nip">
+                <div class="p-4 border border-slate-200 rounded-xl flex items-center justify-between hover:bg-slate-50 transition-all">
+                  <div class="flex items-center gap-3">
+                    <!-- Foto Karyawan Thumbnail -->
+                    <div class="w-12 h-12 rounded-full border border-slate-200 overflow-hidden bg-brand-light text-brand-primary font-bold flex items-center justify-center text-sm shrink-0">
+                      <template x-if="karyawan.foto">
+                        <img :src="karyawan.foto" class="w-full h-full object-cover">
+                      </template>
+                      <template x-if="!karyawan.foto">
+                        <span x-text="karyawan.nama.substring(0,2).toUpperCase()"></span>
+                      </template>
+                    </div>
+                    <div>
+                      <h4 class="font-bold text-slate-800 text-sm" x-text="karyawan.nama"></h4>
+                      <p class="text-xs text-slate-500" x-text="karyawan.nip + ' • ' + karyawan.jabatan + ' (' + karyawan.divisi + ')'"></p>
+                      <span class="text-[10px] font-bold text-slate-400" x-text="karyawan.shift || 'Shift 1 (Pagi)'"></span>
+                    </div>
+                  </div>
+
+                  <!-- Tombol Aksi: Cetak, Edit, Delete -->
+                  <div class="flex items-center gap-2">
+                    <button @click="previewCetakBarcode(karyawan)" title="Cetak Kartu" class="px-3 py-2 bg-slate-100 hover:bg-brand-primary hover:text-white text-slate-700 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5">
+                      <i class="fa-solid fa-print"></i> <span class="hidden sm:inline">Cetak</span>
+                    </button>
+                    <button @click="editKaryawan(karyawan)" title="Edit Data" class="p-2 bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-700 text-xs rounded-lg transition-all border border-amber-200">
+                      <i class="fa-solid fa-pen-to-square w-4 h-4 flex items-center justify-center"></i>
+                    </button>
+                    <button @click="hapusKaryawan(karyawan.nip)" title="Hapus Data" class="p-2 bg-red-50 hover:bg-red-600 hover:text-white text-red-700 text-xs rounded-lg transition-all border border-red-200">
+                      <i class="fa-solid fa-trash-can w-4 h-4 flex items-center justify-center"></i>
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- FITUR 3: REKAP KEHADIRAN SESUAI JADWAL & TANGGAL -->
+      <div x-show="activeTab === 'rekap'">
+        <div id="rekap-table-container" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
+          
+          <!-- Header Rekap -->
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div class="flex items-center gap-4">
+              <img src="logo pt.jpg" alt="Logo PT. Tri Jaya Teknik Karawang" class="h-12 w-auto object-contain">
+              <div>
+                <h3 class="text-lg font-bold text-slate-800">Laporan Rekap Kehadiran Karyawan</h3>
+                <p class="text-xs text-slate-500 font-semibold">PT. TRI JAYA TEKNIK KARAWANG</p>
+              </div>
+            </div>
+            <button @click="cetakLaporanPDF()" class="no-print px-4 py-2.5 bg-brand-primary text-white text-xs font-bold rounded-xl shadow hover:bg-brand-dark transition-all flex items-center gap-2">
+              <i class="fa-solid fa-file-pdf"></i> Cetak Laporan PDF
+            </button>
+          </div>
+
+          <!-- PANEL FILTER JADWAL & STATUS ABSENSI -->
+          <div class="no-print bg-slate-50 p-4 rounded-xl border border-slate-200/80 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            
+            <!-- Filter Tanggal / Jadwal Absensi -->
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+                <i class="fa-regular fa-calendar-check mr-1 text-brand-primary"></i> Tanggal Jadwal
+              </label>
+              <input type="date" x-model="filterTanggal" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:border-brand-primary">
+            </div>
+
+            <!-- Filter Shift Kerja -->
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+                <i class="fa-regular fa-clock mr-1 text-brand-primary"></i> Shift Kerja
+              </label>
+              <select x-model="filterShift" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:border-brand-primary">
+                <option value="Semua">Semua Shift</option>
+                <option value="Shift 1 (Pagi)">Shift 1 (08.00 - 16.00)</option>
+                <option value="Shift 2 (Siang)">Shift 2 (16.00 - 24.00)</option>
+              </select>
+            </div>
+
+            <!-- Filter Divisi -->
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+                <i class="fa-solid fa-sitemap mr-1 text-brand-primary"></i> Divisi / Departemen
+              </label>
+              <select x-model="filterDivisi" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:border-brand-primary">
+                <option value="Semua">Semua Divisi</option>
+                <option value="Teknik & Lapangan">Teknik & Lapangan</option>
+                <option value="HRD & Operasional">HRD & Operasional</option>
+                <option value="Keuangan">Keuangan</option>
+                <option value="Magang/PKL">Magang/PKL</option>
+              </select>
+            </div>
+
+            <!-- Filter Status Kehadiran -->
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+                <i class="fa-solid fa-filter mr-1 text-brand-primary"></i> Status Absensi
+              </label>
+              <select x-model="filterStatus" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:border-brand-primary">
+                <option value="Semua">Semua Status</option>
+                <option value="Hadir">Hadir</option>
+                <option value="Terlambat">Terlambat</option>
+                <option value="Izin">Izin</option>
+                <option value="Sakit">Sakit</option>
+                <option value="Belum Hadir / Alpha">Alpha / Belum Hadir</option>
+              </select>
+            </div>
+
+          </div>
+
+          <!-- Ringkasan Statistik Jadwal -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 no-print">
+            <div class="p-3 bg-green-50 border border-green-200 rounded-xl">
+              <p class="text-[10px] font-bold text-green-700 uppercase">Hadir Tepat Waktu</p>
+              <p class="text-lg font-black text-green-800" x-text="hitungJumlahStatus('Hadir')"></p>
+            </div>
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <p class="text-[10px] font-bold text-amber-700 uppercase">Terlambat</p>
+              <p class="text-lg font-black text-amber-800" x-text="hitungJumlahStatus('Terlambat')"></p>
+            </div>
+            <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+              <p class="text-[10px] font-bold text-blue-700 uppercase">Izin / Sakit</p>
+              <p class="text-lg font-black text-blue-800" x-text="hitungJumlahStatus('Izin') + hitungJumlahStatus('Sakit')"></p>
+            </div>
+            <div class="p-3 bg-red-50 border border-red-200 rounded-xl">
+              <p class="text-[10px] font-bold text-red-700 uppercase">Belum Hadir / Alpha</p>
+              <p class="text-lg font-black text-red-800" x-text="hitungJumlahStatus('Belum Hadir / Alpha')"></p>
+            </div>
+          </div>
+
+          <!-- TABEL REKAP KEHADIRAN -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase font-bold">
+                  <th class="p-3">Karyawan</th>
+                  <th class="p-3">NIP</th>
+                  <th class="p-3">Shift Jadwal</th>
+                  <th class="p-3">Status Kehadiran</th>
+                  <th class="p-3">Jam Masuk</th>
+                  <th class="p-3">Jam Pulang</th>
+                  <th class="p-3 no-print text-center">Aksi Manual Admin</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-sm">
+                <template x-for="karyawan in filteredRekapKaryawan" :key="karyawan.nip">
+                  <tr>
+                    <!-- Nama & Foto -->
+                    <td class="p-3 font-bold text-slate-800 flex items-center gap-2">
+                      <div class="w-7 h-7 rounded-full overflow-hidden bg-slate-100 shrink-0 border border-slate-200 flex items-center justify-center text-xs font-bold text-brand-primary">
+                        <template x-if="karyawan.foto">
+                          <img :src="karyawan.foto" class="w-full h-full object-cover">
+                        </template>
+                        <template x-if="!karyawan.foto">
+                          <span x-text="karyawan.nama.substring(0,2).toUpperCase()"></span>
+                        </template>
+                      </div>
+                      <div>
+                        <span class="block" x-text="karyawan.nama"></span>
+                        <span class="text-[10px] text-slate-400 font-normal" x-text="karyawan.divisi"></span>
+                      </div>
+                    </td>
+                    
+                    <td class="p-3 text-xs font-mono text-slate-500" x-text="karyawan.nip"></td>
+                    
+                    <!-- Shift Kerja -->
+                    <td class="p-3 text-xs text-slate-600 font-semibold">
+                      <span class="px-2 py-1 bg-slate-100 rounded-md" x-text="karyawan.shift || 'Shift 1 (Pagi)'"></span>
+                    </td>
+
+                    <!-- Status Kehadiran -->
+                    <td class="p-3">
+                      <span class="px-3 py-1 rounded-full text-xs font-bold inline-block"
+                        :class="{
+                          'bg-green-100 text-green-700': getStatusJadwal(karyawan) === 'Hadir',
+                          'bg-amber-100 text-amber-700': getStatusJadwal(karyawan) === 'Terlambat',
+                          'bg-red-100 text-red-700': getStatusJadwal(karyawan) === 'Belum Hadir / Alpha',
+                          'bg-blue-100 text-blue-700': getStatusJadwal(karyawan) === 'Izin',
+                          'bg-purple-100 text-purple-700': getStatusJadwal(karyawan) === 'Sakit'
+                        }"
+                        x-text="getStatusJadwal(karyawan)">
+                      </span>
+                    </td>
+
+                    <td class="p-3 text-xs font-bold text-slate-700" x-text="getJamMasukJadwal(karyawan)"></td>
+                    <td class="p-3 text-xs font-bold text-slate-700" x-text="getJamPulangJadwal(karyawan)"></td>
+                    
+                    <!-- Edit Manual Admin -->
+                    <td class="p-3 no-print text-center">
+                      <select @change="ubahStatusJadwalManual(karyawan, $event.target.value)" class="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-slate-50 focus:outline-none focus:border-brand-primary">
+                        <option value="" disabled selected>-- Ubah Status --</option>
+                        <option value="Hadir">Hadir (Tepat Waktu)</option>
+                        <option value="Terlambat">Terlambat</option>
+                        <option value="Izin">Izin</option>
+                        <option value="Sakit">Sakit</option>
+                        <option value="Belum Hadir / Alpha">Alpha / Reset</option>
+                      </select>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- MODAL POPUP PREVIEW KARTU BARCODE UNTUK DICETAK -->
+  <div x-show="showPrintModal" x-transition class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div @click.away="showPrintModal = false" class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl text-center">
+      
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-slate-800">Preview ID Card Karyawan</h3>
+        <button @click="showPrintModal = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- TEMPLATE KARTU ABSENSI / ID CARD -->
+      <div id="print-area" class="relative w-[300px] mx-auto bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-200 text-center font-sans print:shadow-none print:border-none">
+        
+        <!-- Lengkungan Atas Hijau -->
+        <div class="absolute -top-12 -left-12 -right-12 h-28 bg-[#76FF03] rounded-b-[100%] z-0"></div>
+        <div class="absolute -top-16 -left-16 -right-16 h-28 bg-[#1B5E20]/10 rounded-b-[100%] z-0"></div>
+
+        <div class="relative z-10 pt-6 px-4 pb-6 flex flex-col items-center">
+          
+          <!-- Logo & Nama PT -->
+          <img src="logo pt.jpg" alt="Logo PT Tri Jaya Teknik Karawang" class="h-9 w-auto object-contain mb-1">
+          <h2 class="text-[11px] font-black tracking-wider text-slate-800 uppercase mb-3">PT TRI JAYA TEKNIK KARAWANG</h2>
+
+          <!-- Foto Lingkaran & Garis Aksen Hijau -->
+          <div class="relative my-2 flex items-center justify-center">
+            <div class="absolute -left-5 h-16 w-1.5 bg-gradient-to-b from-[#76FF03] via-[#2E7D32] to-[#76FF03] rounded-full"></div>
+            <div class="absolute -right-5 h-16 w-1.5 bg-gradient-to-b from-[#76FF03] via-[#2E7D32] to-[#76FF03] rounded-full"></div>
+
+            <div class="w-28 h-28 rounded-full border-4 border-[#2E7D32] overflow-hidden bg-slate-100 shadow-md flex items-center justify-center">
+              <template x-if="selectedKaryawanPrint?.foto">
+                <img :src="selectedKaryawanPrint.foto" alt="Foto Karyawan" class="w-full h-full object-cover">
+              </template>
+              <template x-if="!selectedKaryawanPrint?.foto">
+                <div class="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400 font-extrabold text-2xl" x-text="selectedKaryawanPrint?.nama.substring(0,2).toUpperCase()"></div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Nama Karyawan & Jabatan -->
+          <div class="mt-2 mb-1">
+            <h3 class="text-lg font-black text-slate-900 tracking-tight leading-tight uppercase" x-text="selectedKaryawanPrint?.nama"></h3>
+            <p class="text-xs font-bold text-slate-600 uppercase tracking-widest mt-0.5" x-text="selectedKaryawanPrint?.jabatan"></p>
+          </div>
+
+          <!-- ID Number -->
+          <div class="text-xs font-bold text-slate-800 tracking-wider mb-2">
+            ID No : <span x-text="selectedKaryawanPrint?.nip"></span>
+          </div>
+
+          <!-- SVG Render Barcode -->
+          <div class="w-full bg-white px-1 py-1 rounded-lg flex justify-center items-center">
+            <svg id="barcode-svg" class="max-w-full h-auto"></svg>
+          </div>
+
+          <div class="mt-2 text-[10px] font-semibold text-slate-500 tracking-wide">
+            www.pt-trijayateknik.com
+          </div>
+
+        </div>
+
+        <div class="absolute -bottom-10 -left-10 -right-10 h-20 bg-[#76FF03] rounded-t-[100%] z-0"></div>
+      </div>
+
+      <button @click="cetakKartuBarcode()" class="mt-6 w-full py-3 bg-brand-primary text-white font-bold text-sm rounded-xl shadow-lg hover:bg-brand-dark transition-all">
+        <i class="fa-solid fa-print mr-2"></i> Cetak Kartu Ini
+      </button>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFIKASI -->
+  <div x-show="showToast" x-transition class="fixed bottom-6 right-6 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3">
+    <div class="w-2.5 h-2.5 rounded-full bg-brand-neon animate-ping"></div>
+    <span class="text-sm font- semibold" x-text="toastMessage"></span>
+  </div>
+
+  <!-- Custom JavaScript -->
+  <script src="script.js"></script>
+</body>
+</html>
