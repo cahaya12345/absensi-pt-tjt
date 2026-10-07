@@ -114,6 +114,10 @@ body {
   animation: scanAnimation 2s infinite ease-in-out;
 }
 
+.bulk-print-page {
+  display: none;
+}
+
 /* Custom CSS untuk Mode Cetak / Print PDF */
 @media print {
   /* Sembunyikan elemen yang tidak perlu saat dicetak */
@@ -159,6 +163,120 @@ body {
   body.print-card-mode #print-area * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  body.print-bulk-mode > * {
+    visibility: hidden !important;
+  }
+
+  body.print-bulk-mode #bulk-print-area,
+  body.print-bulk-mode #bulk-print-area * {
+    visibility: visible !important;
+  }
+
+  body.print-bulk-mode #bulk-print-area {
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+
+  body.print-bulk-mode .bulk-print-page {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+    gap: 5mm;
+    height: 260mm;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  body.print-bulk-mode .bulk-print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  body.print-bulk-mode .bulk-print-card {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 4mm;
+    border: 1px solid #cbd5e1;
+    border-radius: 4mm;
+    color: #0f172a;
+    text-align: center;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.print-bulk-mode .bulk-print-logo {
+    width: auto;
+    height: 9mm;
+    object-fit: contain;
+  }
+
+  body.print-bulk-mode .bulk-print-card h2 {
+    margin: 1mm 0 2mm;
+    font-size: 8pt;
+    font-weight: 800;
+  }
+
+  body.print-bulk-mode .bulk-print-person {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 3mm;
+  }
+
+  body.print-bulk-mode .bulk-print-photo {
+    width: 18mm;
+    height: 18mm;
+    flex: 0 0 18mm;
+    border: 1mm solid #2e7d32;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  body.print-bulk-mode .bulk-print-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e2e8f0;
+    font-size: 12pt;
+    font-weight: 800;
+  }
+
+  body.print-bulk-mode .bulk-print-details {
+    min-width: 0;
+    text-align: left;
+  }
+
+  body.print-bulk-mode .bulk-print-details h3 {
+    overflow-wrap: anywhere;
+    font-size: 10pt;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  body.print-bulk-mode .bulk-print-details p {
+    overflow-wrap: anywhere;
+    font-size: 8pt;
+  }
+
+  body.print-bulk-mode .bulk-print-details .bulk-print-id {
+    margin-top: 1mm;
+    font-weight: 700;
+  }
+
+  body.print-bulk-mode .bulk-print-barcode {
+    width: 90%;
+    max-height: 13mm;
+    margin-top: 2mm;
   }
 
   /* Kustomisasi cetak laporan */

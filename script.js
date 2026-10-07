@@ -12,6 +12,11 @@ function adminAbsensiApp() {
 
     showPrintModal: false,
     selectedKaryawanPrint: null,
+    employeeSearch: '',
+    employeePage: 1,
+    employeesPerPage: 8,
+    isBulkPrint: false,
+    bulkPrintPageSize: 8,
 
     isEditMode: false,
 
@@ -57,6 +62,33 @@ function adminAbsensiApp() {
     saveToStorage() {
       localStorage.setItem('trijaya_karyawan', JSON.stringify(this.daftarKaryawan));
       localStorage.setItem('trijaya_riwayat_absensi', JSON.stringify(this.riwayatAbsensi));
+    },
+
+    get filteredKaryawan() {
+      const query = this.employeeSearch.trim().toLocaleLowerCase('id');
+      if (!query) return this.daftarKaryawan;
+
+      return this.daftarKaryawan.filter(karyawan =>
+        [karyawan.nama, karyawan.nip, karyawan.jabatan, karyawan.divisi]
+          .some(value => (value || '').toLocaleLowerCase('id').includes(query))
+      );
+    },
+
+    get employeePageCount() {
+      return Math.max(1, Math.ceil(this.filteredKaryawan.length / this.employeesPerPage));
+    },
+
+    get paginatedKaryawan() {
+      const start = (this.employeePage - 1) * this.employeesPerPage;
+      return this.filteredKaryawan.slice(start, start + this.employeesPerPage);
+    },
+
+    get bulkPrintPages() {
+      const pages = [];
+      for (let start = 0; start < this.daftarKaryawan.length; start += this.bulkPrintPageSize) {
+        pages.push(this.daftarKaryawan.slice(start, start + this.bulkPrintPageSize));
+      }
+      return pages;
     },
 
     updateTime() {
@@ -136,6 +168,7 @@ function adminAbsensiApp() {
         };
 
         this.daftarKaryawan.push(newKaryawan);
+        this.employeePage = 1;
         this.saveToStorage();
         this.notify(`Karyawan ${this.form.nama} berhasil ditambahkan!`);
         this.resetForm();
@@ -157,6 +190,7 @@ function adminAbsensiApp() {
     hapusKaryawan(nip) {
       if (confirm(`Apakah Anda yakin ingin menghapus karyawan dengan NIP ${nip}?`)) {
         this.daftarKaryawan = this.daftarKaryawan.filter(k => k.nip !== nip);
+        this.employeePage = Math.min(this.employeePage, this.employeePageCount);
         this.saveToStorage();
         this.notify('Karyawan berhasil dihapus.');
         if (this.form.nip === nip) {
@@ -357,6 +391,32 @@ function adminAbsensiApp() {
       document.body.classList.add('print-card-mode');
       window.print();
       document.body.classList.remove('print-card-mode');
+    },
+
+    cetakSemuaBarcode() {
+      if (this.daftarKaryawan.length === 0) {
+        this.notify('Belum ada data karyawan untuk dicetak.');
+        return;
+      }
+
+      this.isBulkPrint = true;
+      this.$nextTick(() => {
+        document.querySelectorAll('.bulk-print-barcode').forEach(barcode => {
+          JsBarcode(barcode, barcode.dataset.nip, {
+            format: 'CODE128',
+            lineColor: '#000',
+            width: 1.5,
+            height: 32,
+            displayValue: false,
+            margin: 2
+          });
+        });
+
+        document.body.classList.add('print-bulk-mode');
+        window.print();
+        document.body.classList.remove('print-bulk-mode');
+        this.isBulkPrint = false;
+      });
     },
 
     cetakLaporanPDF() {
