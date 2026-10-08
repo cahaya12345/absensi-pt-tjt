@@ -49,7 +49,38 @@
 </head>
 <body class="bg-brand-bg font-sans text-slate-800 antialiased" x-data="adminAbsensiApp()">
 
-  <div class="flex min-h-screen flex-col md:h-screen md:flex-row md:overflow-hidden">
+  <!-- LOGIN ADMIN -->
+  <div x-show="authChecked && !isAuthenticated" x-cloak class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200/80">
+      <div class="flex flex-col items-center text-center mb-8">
+        <img src="logo pt.jpg" alt="Logo PT. Tri Jaya Teknik Karawang" class="h-16 w-auto object-contain mb-4">
+        <p class="text-xs font-extrabold tracking-widest text-brand-primary">PT. TRI JAYA TEKNIK KARAWANG</p>
+        <h1 class="mt-2 text-2xl font-extrabold text-slate-800" x-text="adminExists ? 'Login Admin' : 'Buat Admin Pertama'"></h1>
+        <p class="mt-2 text-sm text-slate-500" x-text="adminExists ? 'Masuk untuk mengelola data absensi.' : 'Buat akun admin untuk mulai menggunakan aplikasi.'"></p>
+      </div>
+
+      <form @submit.prevent="submitAuth()" class="space-y-4">
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-bold text-slate-700">Username</span>
+          <input x-model="authForm.username" type="text" minlength="3" maxlength="100" autocomplete="username" required class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20" placeholder="Username admin">
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-bold text-slate-700">Password</span>
+          <input x-model="authForm.password" type="password" :minlength="adminExists ? 1 : 12" autocomplete="current-password" required class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20" :placeholder="adminExists ? 'Masukkan password' : 'Minimal 12 karakter'">
+        </label>
+        <label x-show="!adminExists" class="block">
+          <span class="mb-1.5 block text-sm font-bold text-slate-700">Konfirmasi Password</span>
+          <input x-model="authForm.passwordConfirm" type="password" minlength="12" autocomplete="new-password" :required="!adminExists" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20" placeholder="Ulangi password">
+        </label>
+        <p x-show="authError" x-text="authError" role="alert" class="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"></p>
+        <button type="submit" :disabled="authLoading" class="w-full rounded-xl bg-brand-primary py-3 font-bold text-white transition-all hover:bg-brand-dark disabled:cursor-wait disabled:opacity-60">
+          <span x-text="authLoading ? 'Memproses...' : (adminExists ? 'Login' : 'Buat Akun Admin')"></span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div x-show="authChecked && isAuthenticated" x-cloak class="flex min-h-screen flex-col md:h-screen md:flex-row md:overflow-hidden">
     
     <!-- SIDEBAR ADMIN -->
     <aside class="hidden md:flex w-64 bg-white border-r border-slate-200/80 flex-col justify-between p-4 z-10 shrink-0">
@@ -108,8 +139,11 @@
             <div class="w-8 h-8 rounded-lg bg-brand-primary text-white flex items-center justify-center font-bold text-xs shadow-md">
               AD
             </div>
-            <span class="text-sm font-bold text-slate-700 pr-2">Admin HR</span>
+            <span class="text-sm font-bold text-slate-700 pr-2" x-text="adminUsername"></span>
           </div>
+          <button @click="logout()" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50" type="button">
+            <i class="fa-solid fa-right-from-bracket mr-1"></i> Logout
+          </button>
         </div>
       </div>
 

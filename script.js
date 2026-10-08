@@ -37,31 +37,128 @@ function adminAbsensiApp() {
 
     currentTime: '',
 
-    // Riwayat Absensi Bersih (Kosong)
+    // Data dari Database MySQL
     riwayatAbsensi: {},
-
-    // Daftar Karyawan Bersih (Kosong Tanpa Data Bawaan)
     daftarKaryawan: [],
 
-    init() {
-      // Load Data dari LocalStorage jika ada
-      const savedKaryawan = localStorage.getItem('trijaya_karyawan');
-      if (savedKaryawan) {
-        try { this.daftarKaryawan = JSON.parse(savedKaryawan); } catch(e) {}
-      }
+    authChecked: false,
+    isAuthenticated: false,
+    adminExists: true,
+    adminUsername: '',
+    authLoading: false,
+    authError: '',
+    authForm: {
+      username: '',
+      password: '',
+      passwordConfirm: ''
+    },
 
-      const savedRiwayat = localStorage.getItem('trijaya_riwayat_absensi');
-      if (savedRiwayat) {
-        try { this.riwayatAbsensi = JSON.parse(savedRiwayat); } catch(e) {}
-      }
+    async init() {
+      try {
+        const { response, result } = await this.apiRequest('api.php?action=auth_status');
+        if (!response.ok || result.status !== 'success') {
+          throw new Error(result.message || 'Gagal memeriksa sesi admin.');
+        }
 
+        this.authChecked = true;
+        this.isAuthenticated = result.authenticated;
+        this.adminExists = result.adminExists;
+        this.adminUsername = result.username || '';
+        if (this.isAuthenticated) {
+          await this.loadDataFromDatabase();
+        }
+      } catch (error) {
+        this.authChecked = true;
+        this.authError = error.message || 'Tidak dapat terhubung ke server.';
+        console.error('Gagal memeriksa sesi admin:', error);
+      }
       this.updateTime();
       setInterval(() => this.updateTime(), 1000);
     },
 
-    saveToStorage() {
-      localStorage.setItem('trijaya_karyawan', JSON.stringify(this.daftarKaryawan));
-      localStorage.setItem('trijaya_riwayat_absensi', JSON.stringify(this.riwayatAbsensi));
+    async apiRequest(url, options = {}) {
+      const response = await fetch(url, options);
+      const result = await response.json();
+
+      if (response.status === 401) {
+        this.isAuthenticated = false;
+        this.authChecked = true;
+        this.authError = result.message || 'Sesi admin telah berakhir. Silakan login kembali.';
+      }
+
+      return { response, result };
+    },
+
+    async submitAuth() {
+      this.authLoading = true;
+      this.authError = '';
+      const type = this.adminExists ? 'login' : 'setup_admin';
+
+      try {
+        const { response, result } = await this.apiRequest('api.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type,
+            ...this.authForm
+          })
+        });
+
+        if (!response.ok || result.status !== 'success') {
+          this.authError = result.message || 'Autentikasi admin gagal.';
+          return;
+        }
+
+        this.isAuthenticated = true;
+        this.adminExists = true;
+        this.adminUsername = result.username;
+        this.authForm = { username: '', password: '', passwordConfirm: '' };
+        await this.loadDataFromDatabase();
+      } catch (error) {
+        this.authError = error.message || 'Tidak dapat terhubung ke server.';
+      } finally {
+        this.authLoading = false;
+      }
+    },
+
+    async logout() {
+      try {
+        const { response, result } = await this.apiRequest('api.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'logout' })
+        });
+
+        if (!response.ok || result.status !== 'success') {
+          this.authError = result.message || 'Logout gagal.';
+          return;
+        }
+
+        this.isAuthenticated = false;
+        this.adminUsername = '';
+        this.authError = '';
+        this.activeTab = 'scan';
+        this.stopCamera();
+      } catch (error) {
+        this.authError = error.message || 'Tidak dapat terhubung ke server.';
+      }
+    },
+
+    // ==========================================
+    // INTEGRASI DATABASE MYSQL (API FETCH)
+    // ==========================================
+    async loadDataFromDatabase() {
+      try {
+        const { response, result } = await this.apiRequest('api.php?action=get_all');
+        if (response.ok && result.status === 'success') {
+          this.daftarKaryawan = result.karyawan || [];
+          this.riwayatAbsensi = result.riwayat || {};
+        } else {
+          console.error('Gagal memuat data dari database:', result.message);
+        }
+      } catch (e) {
+        console.error('Koneksi database gagal:', e);
+      }
     },
 
     get filteredKaryawan() {
@@ -134,44 +231,29 @@ function adminAbsensiApp() {
       }
     },
 
-    simpanKaryawan() {
-      if (this.isEditMode) {
-        // UPDATE / EDIT KARYAWAN
-        const index = this.daftarKaryawan.findIndex(k => k.nip === this.form.nip);
-        if (index !== -1) {
-          this.daftarKaryawan[index].nama = this.form.nama;
-          this.daftarKaryawan[index].jabatan = this.form.jabatan;
-          this.daftarKaryawan[index].divisi = this.form.divisi;
-          this.daftarKaryawan[index].shift = this.form.shift;
-          if (this.form.foto) {
-            this.daftarKaryawan[index].foto = this.form.foto;
-          }
-          this.saveToStorage();
-          this.notify(`Data ${this.form.nama} berhasil diperbarui!`);
+    async simpanKaryawan() {
+      const payload = {
+        type: 'simpan_karyawan',
+        ...this.form,
+        isEdit: this.isEditMode
+      };
+
+      try {
+        const { response, result } = await this.apiRequest('api.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok && result.status === 'success') {
+          this.notify(result.message);
+          await this.loadDataFromDatabase(); // Refresh data dari DB
           this.resetForm();
+        } else {
+          alert(result.message);
         }
-      } else {
-        // TAMBAH KARYAWAN BARU
-        const existing = this.daftarKaryawan.find(k => k.nip.toLowerCase() === this.form.nip.toLowerCase());
-        if (existing) {
-          alert('NIP Karyawan sudah terdaftar!');
-          return;
-        }
-
-        const newKaryawan = {
-          nip: this.form.nip,
-          nama: this.form.nama,
-          jabatan: this.form.jabatan,
-          divisi: this.form.divisi,
-          shift: this.form.shift,
-          foto: this.form.foto
-        };
-
-        this.daftarKaryawan.push(newKaryawan);
-        this.employeePage = 1;
-        this.saveToStorage();
-        this.notify(`Karyawan ${this.form.nama} berhasil ditambahkan!`);
-        this.resetForm();
+      } catch (e) {
+        alert('Gagal terhubung ke server database!');
       }
     },
 
@@ -187,14 +269,22 @@ function adminAbsensiApp() {
       };
     },
 
-    hapusKaryawan(nip) {
+    async hapusKaryawan(nip) {
       if (confirm(`Apakah Anda yakin ingin menghapus karyawan dengan NIP ${nip}?`)) {
-        this.daftarKaryawan = this.daftarKaryawan.filter(k => k.nip !== nip);
-        this.employeePage = Math.min(this.employeePage, this.employeePageCount);
-        this.saveToStorage();
-        this.notify('Karyawan berhasil dihapus.');
-        if (this.form.nip === nip) {
-          this.resetForm();
+        try {
+          const { response, result } = await this.apiRequest(`api.php?nip=${encodeURIComponent(nip)}`, { method: 'DELETE' });
+
+          if (response.ok && result.status === 'success') {
+            this.notify(result.message);
+            await this.loadDataFromDatabase(); // Refresh data dari DB
+            if (this.form.nip === nip) {
+              this.resetForm();
+            }
+          } else {
+            alert(result.message);
+          }
+        } catch (e) {
+          alert('Gagal menghapus data dari database!');
         }
       }
     },
@@ -289,7 +379,7 @@ function adminAbsensiApp() {
       }
     },
 
-    processScan(nipInput) {
+    async processScan(nipInput) {
       if (!nipInput) return;
       const target = this.daftarKaryawan.find(k => k.nip.toLowerCase() === nipInput.trim().toLowerCase());
 
@@ -300,73 +390,79 @@ function adminAbsensiApp() {
       }
 
       const today = new Date().toISOString().split('T')[0];
-      const jamSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      const jamSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-      if (!this.riwayatAbsensi[today]) {
-        this.riwayatAbsensi[today] = {};
-      }
-
-      if (!this.riwayatAbsensi[today][target.nip]) {
-        this.riwayatAbsensi[today][target.nip] = {
-          status: 'Hadir',
-          jamMasuk: null,
-          jamPulang: null
-        };
-      }
-
-      // Deteksi Terlambat (misal jika masuk > 08.00)
+      // Deteksi Terlambat (misal jika masuk >= 08.00)
       const jamInt = parseInt(jamSekarang.split('.')[0]);
       let statusHitung = 'Hadir';
       if (jamInt >= 8 && this.scanMode === 'masuk') {
         statusHitung = 'Terlambat';
       }
 
-      if (this.scanMode === 'masuk') {
-        this.riwayatAbsensi[today][target.nip].status = statusHitung;
-        this.riwayatAbsensi[today][target.nip].jamMasuk = jamSekarang;
-        this.notify(`Absen Masuk Berhasil (${statusHitung}): ${target.nama}`);
-      } else {
-        this.riwayatAbsensi[today][target.nip].jamPulang = jamSekarang;
-        this.notify(`Absen Pulang Berhasil: ${target.nama}`);
-      }
-
-      this.lastScannedKaryawan = {
-        ...target,
-        jamMasuk: this.riwayatAbsensi[today][target.nip].jamMasuk,
-        jamPulang: this.riwayatAbsensi[today][target.nip].jamPulang
+      const payload = {
+        type: 'simpan_absensi',
+        nip: target.nip,
+        tanggal: today,
+        status: statusHitung,
+        jamMasuk: this.scanMode === 'masuk' ? jamSekarang : null,
+        jamPulang: this.scanMode === 'pulang' ? jamSekarang : null
       };
 
+      try {
+        const { response, result } = await this.apiRequest('api.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok && result.status === 'success') {
+          this.notify(`Absen ${this.scanMode.toUpperCase()} Berhasil: ${target.nama}`);
+          await this.loadDataFromDatabase();
+
+          this.lastScannedKaryawan = {
+            ...target,
+            jamMasuk: this.riwayatAbsensi[today]?.[target.nip]?.jamMasuk || '-',
+            jamPulang: this.riwayatAbsensi[today]?.[target.nip]?.jamPulang || '-'
+          };
+        } else {
+          alert(result.message);
+        }
+      } catch (e) {
+        alert('Gagal menyimpan absensi ke database!');
+      }
+
       this.inputNipScan = '';
-      this.saveToStorage();
     },
 
-    ubahStatusJadwalManual(karyawan, statusBaru) {
+    async ubahStatusJadwalManual(karyawan, statusBaru) {
       const tgl = this.filterTanggal;
-      
-      if (!this.riwayatAbsensi[tgl]) {
-        this.riwayatAbsensi[tgl] = {};
+      const jamSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      const payload = {
+        type: 'simpan_absensi',
+        nip: karyawan.nip,
+        tanggal: tgl,
+        status: statusBaru,
+        jamMasuk: (statusBaru === 'Hadir' || statusBaru === 'Terlambat') ? jamSekarang : null,
+        jamPulang: null
+      };
+
+      try {
+        const { response, result } = await this.apiRequest('api.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok && result.status === 'success') {
+          this.notify(`[Jadwal ${tgl}] Status ${karyawan.nama} diubah ke ${statusBaru}`);
+          await this.loadDataFromDatabase();
+        } else {
+          alert(result.message);
+        }
+      } catch (e) {
+        alert('Gagal mengupdate status ke database!');
       }
-
-      if (!this.riwayatAbsensi[tgl][karyawan.nip]) {
-        this.riwayatAbsensi[tgl][karyawan.nip] = {
-          status: 'Belum Hadir / Alpha',
-          jamMasuk: null,
-          jamPulang: null
-        };
-      }
-
-      const record = this.riwayatAbsensi[tgl][karyawan.nip];
-      record.status = statusBaru;
-
-      if ((statusBaru === 'Hadir' || statusBaru === 'Terlambat') && !record.jamMasuk) {
-        record.jamMasuk = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-      } else if (statusBaru === 'Belum Hadir / Alpha') {
-        record.jamMasuk = null;
-        record.jamPulang = null;
-      }
-
-      this.saveToStorage();
-      this.notify(`[Jadwal ${tgl}] Status ${karyawan.nama} diubah ke ${statusBaru}`);
     },
 
     // ==========================================
